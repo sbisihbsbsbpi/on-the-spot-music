@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>OnTheSpot Library</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        margin: 0;
+        padding: 0;
+        /* Colorful gradient background */
+        background: radial-gradient(circle at top left, #1f2937, #020617);
+        color: #f9fafb;
+      }
+
+      h1 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(90deg, #38bdf8, #a855f7, #f97316);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .container {
+        padding: 16px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+
+      .topbar label {
+        background: rgba(15, 23, 42, 0.8);
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.5);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+      }
+
+      .topbar input[type="file"] {
+        font-size: 0.8rem;
+      }
+
+      .hint {
+        font-size: 0.8rem;
+        color: #9ca3af;
+        margin-bottom: 12px;
+      }
+
+      .version-tag {
+        font-size: 0.7rem;
+        color: #a5b4fc;
+        opacity: 0.85;
+      }
+
+      .library {
+        display: flex;
+        gap: 16px;
+        min-height: 400px;
+      }
+
+      .albums-panel,
+      .tracks-panel {
+        border-radius: 12px;
+        padding: 12px;
+        overflow: auto;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.8);
+      }
+
+      .albums-panel {
+        max-width: 260px;
+        flex: 0 0 260px;
+        background: linear-gradient(180deg, #0f172a, #1d2434);
+        border: 1px solid rgba(59, 130, 246, 0.35);
+      }
+
+      .tracks-panel {
+        flex: 1;
+        background: linear-gradient(180deg, #020617, #111827);
+        border: 1px solid rgba(236, 72, 153, 0.35);
+      }
+
+      .panel-title {
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: #e5e7eb;
+      }
+
+      #albumList,
+      #trackList {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* Make albums list scrollable when there are many albums */
+      #albumList {
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+
+      #albumList li {
+        padding: 6px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: #e5e7eb;
+        transition: background 0.15s ease, transform 0.1s ease;
+      }
+
+      #albumList li.active {
+        background: linear-gradient(90deg, #3b82f6, #22c55e);
+        color: #0b1120;
+        transform: translateX(2px);
+      }
+
+      #albumList li:hover {
+        background: rgba(148, 163, 184, 0.18);
+      }
+
+      .track-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 4px;
+        border-bottom: 1px solid rgba(55, 65, 81, 0.7);
+      }
+
+      .track-row:nth-child(odd) {
+        background: rgba(15, 23, 42, 0.45);
+      }
+
+      .track-row:nth-child(even) {
+        background: rgba(15, 23, 42, 0.2);
+      }
+
+      .track-row button {
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        border: none;
+        color: #f9fafb;
+        padding: 4px 12px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 12px;
+        box-shadow: 0 6px 15px rgba(15, 23, 42, 0.65);
+        transition: transform 0.08s ease, box-shadow 0.12s ease,
+          filter 0.12s ease;
+      }
+
+      .track-row button:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.1);
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.85);
+      }
+
+      .track-row button:active {
+        transform: translateY(0);
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.7);
+      }
+
+      .track-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #e5e7eb;
+      }
+
+      /* Small heartbeat/equalizer animation shown while a song is playing */
+      .eq-indicator {
+        /* Hidden now; heartbeat is shown directly on the progress bar */
+        display: none;
+      }
+
+      .eq-indicator span {
+        flex: 1;
+        margin: 0 1px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #22c55e, #a3e635);
+        height: 100%;
+        transform-origin: bottom;
+        opacity: 0.9;
+        transition: transform 0.08s linear;
+      }
+
+      /* Paused state: low bars */
+      .eq-paused span {
+        transform: scaleY(0.22);
+        opacity: 0.5;
+      }
+
+      /* Per-track waveform progress bars are hidden now that we have
+         a single global SoundCloud-style transport bar at the bottom. */
+      .track-progress {
+        display: none;
+      }
+
+      /* Individual bars that together form a SoundCloud-style progress bar */
+      .wave-bar {
+        flex: 0 0 3px; /* bar width */
+        border-radius: 999px;
+        background: #d9d9d9; /* unplayed color */
+        height: 100%; /* bar spans full track-progress height, then scales */
+        transform-origin: center; /* scale around center so bars are centered */
+        transform: scaleY(
+          0.3
+        ); /* base: small line; heartbeat makes it taller */
+        transition: transform 0.08s linear, background-color 0.12s linear,
+          box-shadow 0.12s linear;
+      }
+
+      .wave-bar.played {
+        background: #ff5500; /* played color */
+      }
+
+      .wave-bar.active {
+        box-shadow: 0 0 8px rgba(234, 179, 8, 0.9);
+      }
+
+      .track-time {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        white-space: nowrap;
+        margin-left: 6px;
+      }
+
+      /* Global SoundCloud-style transport bar fixed near the bottom */
+      .transport {
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 16px;
+        width: min(960px, calc(100% - 32px));
+        background: #ffffff;
+        color: #111827;
+        border-radius: 999px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.85);
+        display: flex;
+        align-items: center;
+        padding: 8px 16px;
+        gap: 12px;
+        z-index: 40;
+      }
+
+      .transport-play {
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        border: 2px solid #111827;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        color: #111827;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.35);
+      }
+
+      .transport-center {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .transport-wave-wrap {
+        position: relative;
+        height: 52px;
+        display: flex;
+        align-items: flex-end;
+      }
+
+      .transport-wave {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+      }
+
+      .transport-thumb {
+        position: absolute;
+        bottom: -4px;
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        background: #ffffff;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.5);
+        transform: translateX(-50%);
+        pointer-events: none;
+      }
+
+      .transport-times {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: #6b7280;
+      }
+
+      .transport-meta {
+        min-width: 160px;
+        text-align: right;
+      }
+
+      .transport-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #111827;
+      }
+
+      .transport-artist {
+        font-size: 0.75rem;
+        color: #6b7280;
+      }
+
+      /* Slightly adjust waveform colors when used inside transport */
+      .transport .wave-bar {
+        background: #d1d5db;
+      }
+
+      .transport .wave-bar.played {
+        background: #f97316;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <h1>OnTheSpot Library (Local)</h1>
+        <label>
+          <strong>Choose Tracks Folder:</strong>
+          <input
+            type="file"
+            id="folderPicker"
+            webkitdirectory
+            directory
+            multiple
+          />
+        </label>
+      </div>
+      <div class="hint">
+        Pick your <code>Tracks</code> folder (e.g.
+        <code>/Users/tlreddy/Music/OnTheSpot/Tracks</code>). Left = albums,
+        right = tracks for the selected album. Click Play/Pause to listen.
+        <span class="version-tag">UI build: waveform-v1</span>
+      </div>
+
+      <div class="library">
+        <div class="albums-panel">
+          <div class="panel-title">Albums</div>
+          <ul id="albumList"></ul>
+        </div>
+        <div class="tracks-panel">
+          <div class="panel-title" id="tracksTitle">Tracks</div>
+          <ul id="trackList"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global SoundCloud-style transport bar (initially hidden) -->
+    <div class="transport" id="transportBar" style="display: none">
+      <button class="transport-play" id="transportPlayButton">▶</button>
+      <div class="transport-center">
+        <div class="transport-wave-wrap" id="transportWaveWrap">
+          <div class="transport-wave" id="transportWave"></div>
+          <div class="transport-thumb" id="transportThumb"></div>
+        </div>
+        <div class="transport-times">
+          <span class="transport-time-left" id="transportTimeCurrent"
+            >0:00</span
+          >
+          <span class="transport-time-right" id="transportTimeTotal">0:00</span>
+        </div>
+      </div>
+      <div class="transport-meta">
+        <div class="transport-title" id="transportTitle">No track selected</div>
+        <div class="transport-artist" id="transportArtist"></div>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        const folderInput = document.getElementById("folderPicker");
+        const albumListEl = document.getElementById("albumList");
+        const trackListEl = document.getElementById("trackList");
+        const tracksTitle = document.getElementById("tracksTitle");
+        const transportBar = document.getElementById("transportBar");
+        const transportPlayButton = document.getElementById(
+          "transportPlayButton"
+        );
+        const transportWaveWrap = document.getElementById("transportWaveWrap");
+        const transportWave = document.getElementById("transportWave");
+        const transportThumb = document.getElementById("transportThumb");
+        const transportTimeCurrent = document.getElementById(
+          "transportTimeCurrent"
+        );
+        const transportTimeTotal =
+          document.getElementById("transportTimeTotal");
+        const transportTitleEl = document.getElementById("transportTitle");
+        const transportArtistEl = document.getElementById("transportArtist");
+        const supportsFSAccess =
+          "showDirectoryPicker" in window && window.isSecureContext;
+
+        const DB_NAME = "otsLibraryFS";
+        const DB_VERSION = 1;
+        const STORE_NAME = "settings";
+
+        let albumsMap = {};
+        const TRANSPORT_NUM_BARS = 96;
+        let currentAlbum = null;
+        let currentAudio = null;
+        let currentButton = null;
+        let currentEq = null;
+        let albumOrder = [];
+        let albumLiMap = {};
+        let autoPlayRequest = null; // { albumName, key }
+        let audioCtx = null;
+        const waveformCache = new Map();
+        let transportAudio = null;
+        let transportFileKey = null;
+        let transportWaveBars = [];
+        let transportPeaks = null;
+        let transportVisualProgress = 0;
+        let isTransportDragging = false;
+        let isDraggingTransportBar = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let barStartLeft = 0;
+        let barStartTop = 0;
+
+        function getAudioContext() {
+          if (!audioCtx) {
+            const Ctor =
+              window.AudioContext || window.webkitAudioContext || null;
+            if (!Ctor) {
+              throw new Error("Web Audio API not supported in this browser");
+            }
+            audioCtx = new Ctor();
+          }
+          return audioCtx;
+        }
+
+        async function decodeAudioDataCompat(ctx, arrayBuffer) {
+          return new Promise((resolve, reject) => {
+            const returnValue = ctx.decodeAudioData(
+              arrayBuffer,
+              (buffer) => resolve(buffer),
+              (err) => reject(err)
+            );
+            if (returnValue && typeof returnValue.then === "function") {
+              returnValue.then(resolve, reject);
+            }
+          });
+        }
+
+        function smoothPulse(base, index, timeSec) {
+          const speed = 4.5;
+          const depth = 0.3;
+          const phase = timeSec * speed + index * 0.35;
+          const factor = 1 - depth + Math.sin(phase) * depth;
+          return base * factor;
+        }
+
+        function ease(current, target, factor = 0.12) {
+          return current + (target - current) * factor;
+        }
+
+        async function computeWaveformPeaks(file, numBars, key) {
+          if (waveformCache.has(key)) return waveformCache.get(key);
+
+          try {
+            const ctx = getAudioContext();
+            const arrayBuffer = await file.arrayBuffer();
+            const audioBuffer = await decodeAudioDataCompat(ctx, arrayBuffer);
+
+            const numChannels = audioBuffer.numberOfChannels || 1;
+            const length = audioBuffer.length;
+            const samplesPerBar = Math.floor(length / numBars) || 1;
+            const peaks = new Float32Array(numBars);
+
+            const channelData = [];
+            for (let ch = 0; ch < numChannels; ch++) {
+              channelData.push(audioBuffer.getChannelData(ch));
+            }
+
+            for (let i = 0; i < numBars; i++) {
+              const start = i * samplesPerBar;
+              const end = Math.min(start + samplesPerBar, length);
+
+              let sumSq = 0;
+              let count = 0;
+              for (let ch = 0; ch < numChannels; ch++) {
+                const data = channelData[ch];
+                for (let j = start; j < end; j++) {
+                  const v = data[j];
+                  sumSq += v * v;
+                  count++;
+                }
+              }
+
+              const meanSq = count ? sumSq / count : 0;
+              peaks[i] = Math.sqrt(meanSq);
+            }
+
+            const overallMax = peaks.reduce((m, v) => (v > m ? v : m), 0) || 1;
+            for (let i = 0; i < numBars; i++) {
+              peaks[i] = peaks[i] / overallMax;
+            }
+
+            waveformCache.set(key, peaks);
+            return peaks;
+          } catch (err) {
+            console.warn("Failed to compute waveform peaks", err);
+            return null;
+          }
+        }
+
+        // --- Global transport bar helpers ---
+        function buildTransportWaveform(numBars) {
+          if (!transportWave) return;
+          transportWave.innerHTML = "";
+          transportWaveBars = [];
+          for (let i = 0; i < numBars; i++) {
+            const bar = document.createElement("span");
+            // Uses the existing .wave-bar styles; colors are overridden inside
+            // .transport via CSS so we get the orange/gray look.
+            bar.className = "wave-bar";
+            transportWaveBars.push(bar);
+            transportWave.appendChild(bar);
+          }
+        }
+
+        function setupTransportForTrack(
+          audio,
+          file,
+          fileKey,
+          albumName,
+          existingPeaks
+        ) {
+          if (!transportBar || !audio || !file) return;
+          transportAudio = audio;
+          transportFileKey = fileKey;
+          transportVisualProgress = 0;
+
+          transportBar.style.display = "flex";
+          // Clean up the display name in the global bar:
+          // - remove anything in parentheses "(...)" from the file name
+          // - remove anything in parentheses from the album name, too
+          const rawName = file.name || "";
+          const nameWithoutParens = rawName.replace(/\s*\([^)]*\)/g, "");
+          transportTitleEl.textContent = nameWithoutParens.trim();
+          const rawAlbum = albumName || "";
+          const albumWithoutParens = rawAlbum.replace(/\s*\([^)]*\)/g, "");
+          transportArtistEl.textContent = albumWithoutParens.trim();
+
+          if (!transportWaveBars.length) {
+            buildTransportWaveform(TRANSPORT_NUM_BARS);
+          }
+
+          const ensurePeaks = existingPeaks
+            ? Promise.resolve(existingPeaks)
+            : computeWaveformPeaks(file, TRANSPORT_NUM_BARS, fileKey);
+
+          ensurePeaks
+            .then((pk) => {
+              if (!pk) return;
+              transportPeaks = pk;
+              transportWaveBars.forEach((bar, i) => {
+                const amp = transportPeaks[i] != null ? transportPeaks[i] : 0.2;
+                const base = 0.2 + amp * 0.8; // 0.2..1.0
+                bar.style.transform = `scaleY(${base})`;
+              });
+            })
+            .catch(() => {
+              // ignore; we'll still show a flat waveform
+            });
+
+          const d = audio && isFinite(audio.duration) ? audio.duration : 0;
+          transportTimeCurrent.textContent = "0:00";
+          transportTimeTotal.textContent = d ? formatTime(d) : "0:00";
+          if (transportThumb) {
+            transportThumb.style.left = "0%";
+          }
+        }
+
+        function hideTransportIfFor(audio) {
+          if (!transportBar || !audio || transportAudio !== audio) return;
+          transportAudio = null;
+          transportFileKey = null;
+          transportVisualProgress = 0;
+          transportBar.style.display = "none";
+        }
+
+        function updateTransportUIForProgress(
+          audio,
+          currentTime,
+          duration,
+          progressRatio
+        ) {
+          if (!transportAudio || transportAudio !== audio) return;
+          const hasFiniteDuration = Number.isFinite(duration) && duration > 0;
+          if (hasFiniteDuration) {
+            transportTimeCurrent.textContent = formatTime(currentTime);
+            transportTimeTotal.textContent = formatTime(duration);
+          } else {
+            transportTimeCurrent.textContent = formatTime(currentTime);
+            transportTimeTotal.textContent = "0:00";
+          }
+
+          const ratio = Math.min(1, Math.max(0, progressRatio || 0));
+          if (transportPlayButton && audio) {
+            // Icon-only: show ▶ when paused, ❚❚ when playing
+            transportPlayButton.textContent = audio.paused ? "▶" : "❚❚";
+          }
+          if (transportThumb) {
+            transportThumb.style.left = `${ratio * 100}%`;
+          }
+
+          const totalBars = transportWaveBars.length;
+          if (!totalBars) return;
+          const activeIndex = Math.min(
+            totalBars - 1,
+            Math.floor(ratio * (totalBars - 1))
+          );
+
+          // Global time for subtle per-bar wobble
+          const timeSec = performance.now() / 1000;
+          const t = currentTime || 0;
+          // Heartbeat: tied to track time, stronger later in the song
+          const heartPhase = t * 2.0;
+          const heartPulse = Math.max(0, Math.sin(heartPhase * Math.PI * 2));
+          const basePulseAmp = 0.35;
+          const heartAmp = basePulseAmp + 0.25 * ratio;
+
+          transportWaveBars.forEach((bar, i) => {
+            const isPlayed = i <= activeIndex;
+            const dist = Math.abs(i - activeIndex);
+            const isHead = dist === 0;
+
+            // Color: played vs unplayed
+            if (isPlayed) bar.classList.add("played");
+            else bar.classList.remove("played");
+
+            // Base height from transport waveform peaks when available
+            let base = 0.3;
+            if (transportPeaks && transportPeaks[i] != null) {
+              base = 0.25 + transportPeaks[i] * 0.5;
+            }
+
+            // Subtle per-bar wobble so the waveform feels alive
+            let scale = smoothPulse(base, i, timeSec);
+
+            // Heartbeat bump strongest at the head, fading for neighbors
+            if (dist === 0) {
+              scale += heartAmp * heartPulse;
+            } else if (dist === 1) {
+              scale += 0.4 * heartAmp * heartPulse;
+            } else if (dist === 2) {
+              scale += 0.2 * heartAmp * heartPulse;
+            }
+
+            const clamped = Math.max(0.1, Math.min(1.6, scale));
+            bar.style.transform = `scaleY(${clamped})`;
+            if (isHead) bar.classList.add("active");
+            else bar.classList.remove("active");
+          });
+        }
+
+        function openSettingsDB() {
+          return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onupgradeneeded = (event) => {
+              const db = event.target.result;
+              if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+              }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+        }
+
+        async function saveDirectoryHandle(handle) {
+          try {
+            const db = await openSettingsDB();
+            const tx = db.transaction(STORE_NAME, "readwrite");
+            const store = tx.objectStore(STORE_NAME);
+            store.put(handle, "musicDirHandle");
+            await new Promise((resolve, reject) => {
+              tx.oncomplete = () => resolve();
+              tx.onerror = () => reject(tx.error);
+              tx.onabort = () => reject(tx.error);
+            });
+          } catch (err) {
+            console.warn("Failed to save directory handle", err);
+          }
+        }
+
+        async function loadDirectoryHandle() {
+          try {
+            const db = await openSettingsDB();
+            return await new Promise((resolve, reject) => {
+              const tx = db.transaction(STORE_NAME, "readonly");
+              const store = tx.objectStore(STORE_NAME);
+              const req = store.get("musicDirHandle");
+              req.onsuccess = () => resolve(req.result || null);
+              req.onerror = () => reject(req.error);
+            });
+          } catch (err) {
+            console.warn("Failed to load directory handle", err);
+            return null;
+          }
+        }
+
+        async function verifyPermission(handle, readWrite) {
+          if (!handle || !handle.queryPermission || !handle.requestPermission)
+            return true;
+          const opts = { mode: readWrite ? "readwrite" : "read" };
+          const q = await handle.queryPermission(opts);
+          if (q === "granted") return true;
+          const r = await handle.requestPermission(opts);
+          return r === "granted";
+        }
+
+        async function walkDirectory(dirHandle, pathPrefix, outFiles) {
+          for await (const [name, entry] of dirHandle.entries()) {
+            if (entry.kind === "file") {
+              const file = await entry.getFile();
+              const rel = pathPrefix ? `${pathPrefix}/${name}` : name;
+              file._relativePath = rel;
+              const n = name.toLowerCase();
+              if (
+                n.endsWith(".mp3") ||
+                n.endsWith(".m4a") ||
+                n.endsWith(".flac") ||
+                n.endsWith(".wav") ||
+                n.endsWith(".ogg")
+              ) {
+                outFiles.push(file);
+              }
+            } else if (entry.kind === "directory") {
+              const nextPrefix = pathPrefix ? `${pathPrefix}/${name}` : name;
+              await walkDirectory(entry, nextPrefix, outFiles);
+            }
+          }
+        }
+
+        async function loadFromDirectory(rootHandle) {
+          const ok = await verifyPermission(rootHandle, false);
+          if (!ok) return;
+          const files = [];
+          await walkDirectory(rootHandle, "", files);
+          if (!files.length) {
+            albumListEl.innerHTML = "";
+            trackListEl.innerHTML =
+              "<li>No audio files found in this folder.</li>";
+            tracksTitle.textContent = "Tracks";
+            return;
+          }
+          buildAlbumsMap(files);
+          renderAlbums();
+        }
+
+        function formatTime(sec) {
+          if (!isFinite(sec) || sec < 0) return "0:00";
+          const m = Math.floor(sec / 60);
+          const s = Math.floor(sec % 60)
+            .toString()
+            .padStart(2, "0");
+          return `${m}:${s}`;
+        }
+
+        function buildAlbumsMap(files) {
+          albumsMap = {};
+          files.forEach((file) => {
+            const relPath =
+              file.webkitRelativePath || file._relativePath || file.name;
+            const parts = relPath.split("/");
+            const albumName =
+              parts.length >= 2 ? parts[parts.length - 2] : "Unknown Album";
+            if (!albumsMap[albumName]) albumsMap[albumName] = [];
+            albumsMap[albumName].push(file);
+          });
+        }
+
+        function getSortedFiles(albumName) {
+          const files = albumsMap[albumName] || [];
+          return files.slice().sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        function renderAlbums() {
+          albumListEl.innerHTML = "";
+          albumLiMap = {};
+          albumOrder = Object.keys(albumsMap).sort();
+
+          albumOrder.forEach((name, index) => {
+            const li = document.createElement("li");
+            // Show S.No for albums: "1. Album Name"
+            li.textContent = `${index + 1}. ${name}`;
+            li.addEventListener("click", () => selectAlbum(name, li));
+            albumLiMap[name] = li;
+            albumListEl.appendChild(li);
+          });
+
+          if (albumOrder.length) {
+            selectAlbum(albumOrder[0], albumListEl.firstChild);
+          } else {
+            tracksTitle.textContent = "Tracks";
+            trackListEl.innerHTML = "<li>No albums found.</li>";
+          }
+        }
+
+        function selectAlbum(name, liEl) {
+          currentAlbum = name;
+          tracksTitle.textContent = name;
+
+          Array.from(albumListEl.children).forEach((li) => {
+            li.classList.toggle("active", li === liEl);
+          });
+
+          renderTracks();
+        }
+
+        function renderTracks() {
+          trackListEl.innerHTML = "";
+          const files = getSortedFiles(currentAlbum);
+
+          if (!files.length) {
+            trackListEl.innerHTML = "<li>No tracks in this album.</li>";
+            return;
+          }
+
+          // Stop any playing audio when switching album tracks
+          if (currentAudio) {
+            hideTransportIfFor(currentAudio);
+            currentAudio.pause();
+            currentAudio = null;
+          }
+          if (currentButton) {
+            currentButton.textContent = "Play";
+            currentButton = null;
+          }
+          if (currentEq) {
+            currentEq.classList.add("eq-paused");
+            currentEq = null;
+          }
+
+          files.forEach((file) => {
+            const row = document.createElement("li");
+            row.className = "track-row";
+
+            const btn = document.createElement("button");
+            btn.textContent = "Play";
+
+            const nameSpan = document.createElement("span");
+            nameSpan.className = "track-name";
+            nameSpan.textContent = file.name;
+
+            // Heartbeat/equalizer indicator (kept for logic, currently hidden in CSS)
+            const eq = document.createElement("div");
+            eq.className = "eq-indicator eq-paused";
+            for (let i = 0; i < 4; i++) {
+              const bar = document.createElement("span");
+              eq.appendChild(bar);
+            }
+
+            const audio = new Audio(URL.createObjectURL(file));
+            const fileKey =
+              file.webkitRelativePath ||
+              file._relativePath ||
+              `${currentAlbum}/${file.name}`;
+
+            const progress = document.createElement("div");
+            progress.className = "track-progress";
+            // Build a SoundCloud-style progress bar from many small vertical bars
+            const NUM_BARS = 96; // more bars for a smoother waveform shape
+            const waveBars = [];
+            let peaks = null;
+            let visualProgress = 0;
+            let rafId = null;
+            let debugFrameCounter = 0;
+
+            function drawWaveformFrame() {
+              try {
+                const t = audio.currentTime || 0;
+                const rawDuration = audio.duration;
+                const hasFiniteDuration =
+                  Number.isFinite(rawDuration) && rawDuration > 0;
+                const d = hasFiniteDuration ? rawDuration : Math.max(1, t || 0);
+                const targetProgress = hasFiniteDuration
+                  ? Math.min(1, Math.max(0, t / d))
+                  : 0; // stay at 0 progress if duration unknown
+                visualProgress = ease(visualProgress, targetProgress);
+                const progressRatio = visualProgress;
+
+                // Keep the global transport bar in sync if this audio is active there
+                updateTransportUIForProgress(audio, t, d, progressRatio);
+
+                // Debug log every ~30 frames so we know this is running
+                if (debugFrameCounter++ % 30 === 0) {
+                  console.log(
+                    "WF frame",
+                    file.name,
+                    "t=",
+                    t,
+                    "dur=",
+                    rawDuration
+                  );
+                }
+
+                // Update time label: always show current time; duration only if known
+                if (hasFiniteDuration) {
+                  timeLabel.textContent = `${formatTime(t)} / ${formatTime(d)}`;
+                } else {
+                  timeLabel.textContent = `${formatTime(t)} / 0:00`;
+                }
+
+                const totalBars = waveBars.length;
+                if (!totalBars) return;
+
+                const activeIndex = Math.min(
+                  totalBars - 1,
+                  Math.floor(progressRatio * (totalBars - 1))
+                );
+
+                // Global time for subtle per-bar wobble
+                const timeSec = performance.now() / 1000;
+
+                // Heartbeat: tied to track time, stronger later in the song
+                const heartPhase = t * 2.0;
+                const heartPulse = Math.max(
+                  0,
+                  Math.sin(heartPhase * Math.PI * 2)
+                ); // 0..1
+                const basePulseAmp = 0.35;
+                const heartAmp = basePulseAmp + 0.25 * progressRatio; // stronger later in song
+
+                waveBars.forEach((bar, i) => {
+                  const isPlayed = i <= activeIndex;
+                  const dist = Math.abs(i - activeIndex);
+                  const isHead = dist === 0;
+
+                  // Color: played vs unplayed
+                  if (isPlayed) bar.classList.add("played");
+                  else bar.classList.remove("played");
+
+                  // Base height from waveform peaks when available
+                  let base = 0.3;
+                  if (peaks && peaks[i] != null) {
+                    base = 0.25 + peaks[i] * 0.5; // 0.25..0.75 -> room for wobble/heartbeat
+                  }
+
+                  // Subtle per-bar wobble so the waveform feels alive
+                  let scale = smoothPulse(base, i, timeSec);
+
+                  // Heartbeat bump strongest at the head, fading for neighbors
+                  if (dist === 0) {
+                    scale += heartAmp * heartPulse;
+                  } else if (dist === 1) {
+                    scale += 0.4 * heartAmp * heartPulse;
+                  } else if (dist === 2) {
+                    scale += 0.2 * heartAmp * heartPulse;
+                  }
+
+                  const clamped = Math.max(0.1, Math.min(1.6, scale));
+                  bar.style.transform = `scaleY(${clamped})`;
+
+                  if (isHead) bar.classList.add("active");
+                  else bar.classList.remove("active");
+                });
+              } catch (err) {
+                console.error("WF error", file.name, err);
+              }
+            }
+
+            function tickWaveform() {
+              drawWaveformFrame();
+              if (!audio.paused && !audio.ended) {
+                rafId = requestAnimationFrame(tickWaveform);
+              } else {
+                rafId = null;
+              }
+            }
+            for (let i = 0; i < NUM_BARS; i++) {
+              const bar = document.createElement("span");
+              bar.className = "wave-bar";
+              waveBars.push(bar);
+              progress.appendChild(bar);
+            }
+
+            // Compute real waveform peaks once per track and shape the base waveform
+            computeWaveformPeaks(file, NUM_BARS, fileKey)
+              .then((result) => {
+                if (!result) return;
+                peaks = result;
+                waveBars.forEach((bar, i) => {
+                  const amp = peaks[i] != null ? peaks[i] : 0.2; // 0..1
+                  const base = 0.25 + amp * 0.5; // keep headroom for pulse
+                  bar.style.transform = `scaleY(${base})`;
+                });
+              })
+              .catch((err) => {
+                console.warn(
+                  "Waveform peak computation failed for",
+                  file.name,
+                  err
+                );
+              });
+
+            // Click-and-drag on the waveform to seek within the track
+            let isDragging = false;
+            function seekFromEvent(e) {
+              if (!isFinite(audio.duration) || audio.duration === 0) return;
+              const rect = progress.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const ratio = Math.min(1, Math.max(0, x / rect.width));
+              audio.currentTime = ratio * audio.duration;
+              // If we're paused, immediately redraw waveform at new position
+              if (audio.paused || audio.ended) {
+                drawWaveformFrame();
+              }
+            }
+
+            progress.addEventListener("mousedown", (e) => {
+              isDragging = true;
+              seekFromEvent(e);
+            });
+
+            progress.addEventListener("mousemove", (e) => {
+              if (!isDragging) return;
+              seekFromEvent(e);
+            });
+
+            progress.addEventListener("mouseup", () => {
+              isDragging = false;
+            });
+
+            progress.addEventListener("mouseleave", () => {
+              isDragging = false;
+            });
+
+            // Simple click also seeks (for taps / non-drag interactions)
+            progress.addEventListener("click", (e) => {
+              seekFromEvent(e);
+            });
+
+            const timeLabel = document.createElement("span");
+            timeLabel.className = "track-time";
+            timeLabel.textContent = "0:00 / 0:00";
+
+            btn.addEventListener("click", () => {
+              if (currentAudio && currentAudio !== audio) {
+                hideTransportIfFor(currentAudio);
+                currentAudio.pause();
+                if (currentButton) currentButton.textContent = "Play";
+                if (currentEq) {
+                  currentEq.classList.add("eq-paused");
+                }
+              }
+
+              if (audio.paused) {
+                audio.play();
+                btn.textContent = "Pause";
+                currentAudio = audio;
+                currentButton = btn;
+                currentEq = eq;
+                eq.classList.remove("eq-paused");
+                setupTransportForTrack(
+                  audio,
+                  file,
+                  fileKey,
+                  currentAlbum,
+                  peaks
+                );
+              } else {
+                audio.pause();
+                btn.textContent = "Play";
+                currentAudio = null;
+                currentButton = null;
+                eq.classList.add("eq-paused");
+              }
+            });
+
+            audio.addEventListener("loadedmetadata", () => {
+              if (isFinite(audio.duration)) {
+                timeLabel.textContent = `0:00 / ${formatTime(audio.duration)}`;
+              }
+            });
+
+            audio.addEventListener("play", () => {
+              console.log(
+                "audio play",
+                file.name,
+                "t=",
+                audio.currentTime,
+                "dur=",
+                audio.duration
+              );
+              // Ensure only one audio plays at a time when playback is started
+              if (currentAudio && currentAudio !== audio) {
+                hideTransportIfFor(currentAudio);
+                currentAudio.pause();
+                if (currentButton) currentButton.textContent = "Play";
+                if (currentEq) {
+                  currentEq.classList.add("eq-paused");
+                }
+              }
+
+              currentAudio = audio;
+              currentButton = btn;
+              currentEq = eq;
+              btn.textContent = "Pause";
+              eq.classList.remove("eq-paused");
+              setupTransportForTrack(audio, file, fileKey, currentAlbum, peaks);
+              if (rafId == null) {
+                rafId = requestAnimationFrame(tickWaveform);
+              }
+            });
+
+            audio.addEventListener("pause", () => {
+              // For explicit pauses (not ended), keep UI in sync
+              if (audio.ended) return;
+              if (currentAudio === audio) {
+                btn.textContent = "Play";
+                currentAudio = null;
+                currentButton = null;
+                if (currentEq === eq) currentEq = null;
+                eq.classList.add("eq-paused");
+              }
+              updateTransportUIForProgress(
+                audio,
+                audio.currentTime || 0,
+                audio.duration || 0,
+                audio.duration ? (audio.currentTime || 0) / audio.duration : 0
+              );
+            });
+
+            audio.addEventListener("ended", () => {
+              if (rafId !== null) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+              }
+              if (currentAudio === audio) {
+                btn.textContent = "Play";
+                currentAudio = null;
+                currentButton = null;
+                if (currentEq === eq) currentEq = null;
+              }
+              hideTransportIfFor(audio);
+
+              visualProgress = 0;
+
+              // Reset waveform bars
+              waveBars.forEach((bar, i) => {
+                bar.classList.remove("played", "active");
+                let base = 0.3;
+                if (peaks && peaks[i] != null) {
+                  base = 0.25 + peaks[i] * 0.5;
+                }
+                bar.style.transform = `scaleY(${base})`;
+              });
+              if (isFinite(audio.duration)) {
+                timeLabel.textContent = `0:00 / ${formatTime(audio.duration)}`;
+              } else {
+                timeLabel.textContent = "0:00 / 0:00";
+              }
+              eq.classList.add("eq-paused");
+
+              // After this track finishes, automatically queue the next track/album
+              queueNextTrack(currentAlbum, fileKey);
+            });
+
+            // If something requested this track to auto-play (from previous ended)
+            if (
+              autoPlayRequest &&
+              autoPlayRequest.albumName === currentAlbum &&
+              autoPlayRequest.key === fileKey
+            ) {
+              audio.play();
+              btn.textContent = "Pause";
+              currentAudio = audio;
+              currentButton = btn;
+              currentEq = eq;
+              eq.classList.remove("eq-paused");
+              autoPlayRequest = null;
+            }
+
+            row.appendChild(btn);
+            row.appendChild(eq);
+            row.appendChild(nameSpan);
+            row.appendChild(progress);
+            row.appendChild(timeLabel);
+            trackListEl.appendChild(row);
+          });
+        }
+
+        function queueNextTrack(albumName, currentFileKey) {
+          if (!albumsMap[albumName]) return;
+          const names = albumOrder.length
+            ? albumOrder
+            : Object.keys(albumsMap).sort();
+          if (!names.length) return;
+
+          const albumIdx = names.indexOf(albumName);
+          if (albumIdx === -1) return;
+
+          const files = getSortedFiles(albumName);
+          const idx = files.findIndex((f) => {
+            const key =
+              f.webkitRelativePath ||
+              f._relativePath ||
+              `${albumName}/${f.name}`;
+            return key === currentFileKey;
+          });
+          if (idx === -1) return;
+
+          // 1) Next track in the same album
+          if (idx + 1 < files.length) {
+            const nextFile = files[idx + 1];
+            autoPlayRequest = {
+              albumName,
+              key:
+                nextFile.webkitRelativePath ||
+                nextFile._relativePath ||
+                `${albumName}/${nextFile.name}`,
+            };
+            const liEl = albumLiMap[albumName];
+            if (liEl) selectAlbum(albumName, liEl);
+            return;
+          }
+
+          // 2) If this was the last track, move to the first track of the next album
+          if (albumIdx + 1 < names.length) {
+            const nextAlbumName = names[albumIdx + 1];
+            const nextAlbumFiles = getSortedFiles(nextAlbumName);
+            if (!nextAlbumFiles.length) return;
+            const firstFile = nextAlbumFiles[0];
+            autoPlayRequest = {
+              albumName: nextAlbumName,
+              key:
+                firstFile.webkitRelativePath ||
+                firstFile._relativePath ||
+                `${nextAlbumName}/${firstFile.name}`,
+            };
+            const liEl = albumLiMap[nextAlbumName];
+            if (liEl) selectAlbum(nextAlbumName, liEl);
+          }
+        }
+
+        // --- Global transport bar controls (play/pause + scrubbing) ---
+        if (transportPlayButton) {
+          transportPlayButton.addEventListener("click", () => {
+            if (!transportAudio) return;
+            if (transportAudio.paused) {
+              // Ensure no other audio keeps playing
+              if (currentAudio && currentAudio !== transportAudio) {
+                hideTransportIfFor(currentAudio);
+                currentAudio.pause();
+                if (currentButton) currentButton.textContent = "Play";
+                if (currentEq) {
+                  currentEq.classList.add("eq-paused");
+                }
+              }
+              transportAudio.play();
+            } else {
+              transportAudio.pause();
+            }
+          });
+        }
+
+        if (transportWaveWrap) {
+          const handleTransportSeekFromEvent = (e) => {
+            if (
+              !transportAudio ||
+              !isFinite(transportAudio.duration) ||
+              transportAudio.duration === 0
+            ) {
+              return;
+            }
+            const rect = transportWaveWrap.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const ratio = Math.min(1, Math.max(0, x / rect.width));
+            transportAudio.currentTime = ratio * transportAudio.duration;
+            if (transportAudio.paused || transportAudio.ended) {
+              updateTransportUIForProgress(
+                transportAudio,
+                transportAudio.currentTime,
+                transportAudio.duration || 0,
+                ratio
+              );
+            }
+          };
+
+          transportWaveWrap.addEventListener("mousedown", (e) => {
+            isTransportDragging = true;
+            handleTransportSeekFromEvent(e);
+          });
+
+          window.addEventListener("mousemove", (e) => {
+            if (!isTransportDragging) return;
+            handleTransportSeekFromEvent(e);
+          });
+
+          window.addEventListener("mouseup", () => {
+            isTransportDragging = false;
+          });
+
+          transportWaveWrap.addEventListener("mouseleave", () => {
+            isTransportDragging = false;
+          });
+
+          // Simple click also seeks (for taps / non-drag interactions)
+          transportWaveWrap.addEventListener("click", (e) => {
+            handleTransportSeekFromEvent(e);
+          });
+        }
+
+        // --- Global transport bar dragging (user can drag player around) ---
+        if (transportBar) {
+          transportBar.addEventListener("mousedown", (e) => {
+            // If the user is clicking on the waveform area, let that handle
+            // scrubbing instead of starting a drag.
+            if (transportWaveWrap && transportWaveWrap.contains(e.target)) {
+              return;
+            }
+
+            const rect = transportBar.getBoundingClientRect();
+            isDraggingTransportBar = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            barStartLeft = rect.left;
+            barStartTop = rect.top;
+            // Prevent text selection while dragging
+            e.preventDefault();
+          });
+        }
+
+        window.addEventListener("mousemove", (e) => {
+          if (!isDraggingTransportBar || !transportBar) return;
+
+          const dx = e.clientX - dragStartX;
+          const dy = e.clientY - dragStartY;
+          const newLeft = barStartLeft + dx;
+          const newTop = barStartTop + dy;
+
+          transportBar.style.left = `${newLeft}px`;
+          transportBar.style.top = `${newTop}px`;
+          transportBar.style.bottom = "auto";
+          transportBar.style.transform = "none";
+        });
+
+        window.addEventListener("mouseup", () => {
+          isDraggingTransportBar = false;
+        });
+
+        folderInput.addEventListener("change", () => {
+          const files = Array.from(folderInput.files).filter((f) => {
+            if (f.type && f.type.startsWith("audio/")) return true;
+            const n = f.name.toLowerCase();
+            return (
+              n.endsWith(".mp3") ||
+              n.endsWith(".m4a") ||
+              n.endsWith(".flac") ||
+              n.endsWith(".wav") ||
+              n.endsWith(".ogg")
+            );
+          });
+
+          if (!files.length) {
+            albumListEl.innerHTML = "";
+            trackListEl.innerHTML =
+              "<li>No audio files found in this folder.</li>";
+            tracksTitle.textContent = "Tracks";
+            return;
+          }
+
+          buildAlbumsMap(files);
+          renderAlbums();
+        });
+
+        // If we're running on http(s) and the File System Access API is
+        // available, use it so the chosen music folder can persist across
+        // refreshes. We hide the raw <input type="file"> and turn its label
+        // into a button that calls showDirectoryPicker().
+        if (supportsFSAccess && window.location.protocol !== "file:") {
+          folderInput.style.display = "none";
+          const labelEl = folderInput.closest("label");
+          if (labelEl) {
+            labelEl.addEventListener("click", async (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              try {
+                const dirHandle = await window.showDirectoryPicker();
+                await saveDirectoryHandle(dirHandle);
+                await loadFromDirectory(dirHandle);
+              } catch (err) {
+                // User canceled the picker; ignore.
+              }
+            });
+          }
+
+          // On load, try to restore the last used directory automatically.
+          (async () => {
+            const handle = await loadDirectoryHandle();
+            if (!handle) return;
+            const ok = await verifyPermission(handle, false);
+            if (!ok) return;
+            await loadFromDirectory(handle);
+          })();
+        }
+      })();
+    </script>
+  </body>
+</html>
