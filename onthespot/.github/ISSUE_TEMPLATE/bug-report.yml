@@ -1,0 +1,24 @@
+name: Bug Report
+description: Found a bug? Report it here.
+labels: [bug]
+body:
+  - type: dropdown
+    id: operating_system
+    attributes:
+      label: Operating System
+      description: Select your operating system.
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A detailed description of the bug and how to reproduce it. Including logs, screenshots, or any other necessary info will help us diagnose the problem faster. Logs can be found at "%localappdata%\Temp\onthespot\logs" on Windows or "~/.cache/onthespot/logs".
+    validations:
+      required: true

@@ -1,0 +1,4 @@
+# Root-level requirements for Streamlit Cloud
+# Delegate to the existing requirements inside onthespot
+-r onthespot/requirements.txt
+

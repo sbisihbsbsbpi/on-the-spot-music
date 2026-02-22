@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>OnTheSpot - About</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+        <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    </head>
+    <body>
+        <div class="header">
+            <ul>
+                <li class="hide-on-mobile"><a href="https://github.com/justin025/onthespot/" target="_blank">OnTheSpot</a></li>
+                <li><a href="/search">Search</a></li>
+                <li><a href="/download_queue">Downloads</a></li>
+                <li><a href="/settings">Settings</a></li>
+                <li><a class="active" href="/about">About</a></li>
+            </ul>
+        </div>
+
+        <br>
+	    	<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+	    	    <div style="display: flex; align-items: center;">
+	    	        <p style="margin-right: 15px; margin-left: 15px;">Version: {{ version }}</p>
+	    	        <p>|</p>
+	    	        <p style="margin-right: 5px; margin-left: 15px;">Total Downloads: {{ statistics }}</p>
+	    	    </div>
+	    	
+	    	    <div style="display: flex; align-items: center;">
+	    	        <button onclick="clearCache()" class="download-action-button" class="hide-on-mobile" style="margin-right: 5px;">
+	    	            <img id="collapse_button_icon" src="/icons/trash.png" loading="lazy" style="width: 15px; height: 15px;">
+	    	            Clear Cache
+	    	        </button>
+	    	        <button onclick="window.location.href='/api/download/logs';" class="download-action-button" class="hide-on-mobile" style="margin-right: 5px;">
+	    	            <img id="collapse_button_icon" src="/icons/export_file.png" loading="lazy" style="width: 15px; height: 15px;">
+	    	            Export Logs
+	    	        </button>
+	    	    </div>
+	    	</div>
+	    	
+	    	<script>
+            function clearCache() {
+                fetch('/api/clear_cache', {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Cache cleared successfully!');
+                        }
+                });
+            }
+        </script>
+    </body>
+</html>
